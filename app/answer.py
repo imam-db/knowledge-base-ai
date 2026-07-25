@@ -12,7 +12,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from app.config import settings
-from app.llm import GroqConfigError, call_groq
+from app.llm import call_groq
 from app.prompts import GUARDRAIL_MESSAGE, build_prompt
 from app.retrieve import SearchResult, search
 
@@ -20,11 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 def _filter_chunks(chunks: Sequence[SearchResult], threshold: float) -> list[SearchResult]:
-    return [c for c in chunks if c.distance <= threshold]
+    """Keep chunks within threshold, ordered by ascending distance (best first)."""
+    filtered = [c for c in chunks if c.distance <= threshold]
+    return sorted(filtered, key=lambda c: (c.distance, c.rank))
 
 
 def _build_sources(chunks: Sequence[SearchResult]) -> list[dict[str, Any]]:
-    """Dedup by (document, page), preserving best-rank order."""
+    """Dedup by (document, page), preserving best-distance order."""
     seen: set[tuple[str, int]] = set()
     sources: list[dict[str, Any]] = []
     for chunk in chunks:
@@ -36,6 +38,11 @@ def _build_sources(chunks: Sequence[SearchResult]) -> list[dict[str, Any]]:
     return sources
 
 
+def _require_groq_api_key() -> None:
+    if not settings.groq_api_key:
+        raise EnvironmentError("GROQ_API_KEY tidak ditemukan di environment")
+
+
 def answer_question(
     question: str,
     top_k: int = 5,
@@ -43,13 +50,18 @@ def answer_question(
 ) -> dict[str, Any]:
     """Orchestrate retrieval → threshold filter → Groq → backend citations."""
     local_timings: dict[str, float] = {}
+    search_timings: dict[str, float] = {}
 
     t0 = time.perf_counter()
-    hits = search(question, top_k=top_k)
+    hits = search(question, top_k=top_k, timings=search_timings)
     local_timings["retrieval_ms"] = (time.perf_counter() - t0) * 1000
+    local_timings["embed_ms"] = search_timings.get("embed_ms", 0.0)
+    local_timings["chroma_ms"] = search_timings.get("chroma_ms", 0.0)
     logger.info(
-        "Retrieval finished in %.1f ms (%s hit(s))",
+        "Retrieval finished in %.1f ms (embed=%.1f ms, chroma=%.1f ms, %s hit(s))",
         local_timings["retrieval_ms"],
+        local_timings["embed_ms"],
+        local_timings["chroma_ms"],
         len(hits),
     )
 
@@ -68,7 +80,9 @@ def answer_question(
     }
 
     if not filtered:
-        logger.info("No chunks passed threshold — skipping Groq")
+        logger.info(
+            "Skipping Groq: no relevant chunks passed distance threshold (no API call)"
+        )
         local_timings["groq_ms"] = 0.0
         local_timings["total_ms"] = local_timings["retrieval_ms"]
         if timings is not None:
@@ -79,6 +93,9 @@ def answer_question(
             "retrieval_metadata": metadata,
             "confidence": None,
         }
+
+    logger.info("Proceeding to Groq with %s filtered chunk(s)", len(filtered))
+    _require_groq_api_key()
 
     prompt = build_prompt(question, filtered)
 
@@ -114,7 +131,7 @@ def _format_output(
         lines.append("  (none)")
     else:
         for src in sources:
-            lines.append(f"  - {src['document']} (page {src['page']})")
+            lines.append(f"  - {src['document']}, halaman {src['page']}")
 
     if verbose:
         meta = result.get("retrieval_metadata") or {}
@@ -127,6 +144,8 @@ def _format_output(
                 f"returned_chunks : {meta.get('returned_chunks')}",
                 f"best_distance   : {meta.get('best_distance')}",
                 f"threshold       : {settings.retrieval_distance_threshold}",
+                f"embed_ms        : {t.get('embed_ms', 0.0):.1f}",
+                f"chroma_ms       : {t.get('chroma_ms', 0.0):.1f}",
                 f"retrieval_ms    : {t.get('retrieval_ms', 0.0):.1f}",
                 f"groq_ms         : {t.get('groq_ms', 0.0):.1f}",
                 f"total_ms        : {t.get('total_ms', 0.0):.1f}",
@@ -157,7 +176,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             top_k=args.top_k,
             timings=timings if args.verbose else None,
         )
-    except GroqConfigError as exc:
+    except EnvironmentError as exc:
         logger.error("%s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

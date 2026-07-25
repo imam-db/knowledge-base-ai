@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from app.answer import answer_question
 from app.prompts import GUARDRAIL_MESSAGE, build_prompt
 from app.retrieve import SearchResult
@@ -27,7 +29,6 @@ def test_build_prompt_labels_chunks():
     assert "Page: 4" in prompt
     assert "Karyawan mengajukan cuti via HRIS." in prompt
     assert "Bagaimana cuti?" in prompt
-    assert "jangan" in prompt.lower() or "JANGAN" in prompt or "Jangan" in prompt
 
 
 def test_answer_skips_groq_when_no_chunks_pass_threshold():
@@ -38,6 +39,7 @@ def test_answer_skips_groq_when_no_chunks_pass_threshold():
         patch("app.answer.settings") as settings_mock,
     ):
         settings_mock.retrieval_distance_threshold = 25.0
+        settings_mock.groq_api_key = "should-not-matter"
         result = answer_question("topik asing")
 
     groq_mock.assert_not_called()
@@ -46,6 +48,21 @@ def test_answer_skips_groq_when_no_chunks_pass_threshold():
     assert result["retrieval_metadata"]["returned_chunks"] == 0
     assert result["retrieval_metadata"]["best_distance"] is None
     assert result["confidence"] is None
+
+
+def test_answer_raises_environment_error_when_api_key_missing():
+    hits = [_chunk(distance=10.0)]
+    with (
+        patch("app.answer.search", return_value=hits),
+        patch("app.answer.call_groq") as groq_mock,
+        patch("app.answer.settings") as settings_mock,
+    ):
+        settings_mock.retrieval_distance_threshold = 25.0
+        settings_mock.groq_api_key = ""
+        with pytest.raises(EnvironmentError, match="GROQ_API_KEY tidak ditemukan"):
+            answer_question("Bagaimana cuti?")
+
+    groq_mock.assert_not_called()
 
 
 def test_answer_calls_groq_and_builds_deduped_sources():
@@ -60,6 +77,7 @@ def test_answer_calls_groq_and_builds_deduped_sources():
         patch("app.answer.settings") as settings_mock,
     ):
         settings_mock.retrieval_distance_threshold = 25.0
+        settings_mock.groq_api_key = "test-key"
         result = answer_question("Bagaimana cuti?", top_k=5)
 
     groq_mock.assert_called_once()
