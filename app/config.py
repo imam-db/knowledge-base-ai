@@ -41,6 +41,10 @@ class Settings:
     groq_model: str = field(
         default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     )
+    debug: bool = field(
+        default_factory=lambda: os.getenv("DEBUG", "False").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
 
     def cleaning_patterns(self) -> list[re.Pattern[str]]:
         patterns: list[str] = [
