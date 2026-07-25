@@ -34,6 +34,13 @@ class Settings:
     )
     # Optional company header token; empty = still match Confidential / page numbers
     company_header: str = field(default_factory=lambda: os.getenv("COMPANY_HEADER", "").strip())
+    retrieval_distance_threshold: float = field(
+        default_factory=lambda: float(os.getenv("RETRIEVAL_DISTANCE_THRESHOLD", "25.0"))
+    )
+    groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", "").strip())
+    groq_model: str = field(
+        default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    )
 
     def cleaning_patterns(self) -> list[re.Pattern[str]]:
         patterns: list[str] = [
