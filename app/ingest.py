@@ -12,9 +12,7 @@ if str(_ROOT) not in sys.path:
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.chroma import replace_document_chunks
 from app.config import make_document_id, settings
-from app.embedding import embed_texts
 from app.loaders import discover_documents, load_file
 
 
@@ -85,6 +83,9 @@ def ingest_file(path: Path) -> tuple[int, dict[str, Any] | None]:
     if not chunks:
         print(f"WARNING: skipping document with no chunks: {document_name}")
         return 0, None
+
+    from app.chroma import replace_document_chunks
+    from app.embedding import embed_texts
 
     texts = [c["text"] for c in chunks]
     # Fatal on failure (do not catch): embedding + chroma
