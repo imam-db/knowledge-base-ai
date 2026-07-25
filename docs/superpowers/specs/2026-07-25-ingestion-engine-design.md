@@ -76,14 +76,14 @@ documents/ → loaders.py (load + clean)
    - DOCX / missing page metadata: **`page = 1` always** (never `null` or `0`).
 4. Clean each segment’s text with configurable regex patterns (metadata unchanged).
 5. **Split per segment, do not concatenate the whole file first.** Use `RecursiveCharacterTextSplitter(...).split_documents(page_docs)` so each chunk **inherits** its source segment’s `page`. This keeps citation metadata accurate for Milestone 3.
-6. After splitting, assign pipeline metadata on every chunk (`chunk_id` is 0-based across the whole document after all pages are split):
+6. After splitting, drop empty chunks (after strip). Assign pipeline metadata on every **kept** chunk. `chunk_id` is **0-based sequential over kept chunks only** (no gaps if empties were skipped): `0, 1, 2, ...`
 
 ```python
 {
   "document_id": "<uuid5-string>",
   "document_name": "nama_file.pdf",
   "page": 8,                    # int; inherited from source page; DOCX default 1
-  "chunk_id": 12,               # 0-based index within this document
+  "chunk_id": 12,               # 0-based among kept chunks only
   "uploaded_at": "2026-07-25"   # date.today().isoformat()
 }
 ```
@@ -172,4 +172,5 @@ Automated unit tests are optional for M1.
 | PDF page numbering | Store 1-based page numbers |
 | Directory scan | Flat only under `documents/` |
 | Orphan files removed from disk | Not pruned from Chroma in M1 |
+| Empty chunks skipped | `chunk_id` sequential on kept chunks only (no gaps) |
 | Module style | Thin modules + pipeline in `ingest.py` |
