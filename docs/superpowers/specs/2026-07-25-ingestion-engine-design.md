@@ -69,18 +69,20 @@ documents/ → loaders.py (load + clean)
 
 ## Data flow (per file)
 
-1. Scan `documents/` for `.pdf` / `.docx` (case-insensitive). Other extensions ignored.
-2. Derive stable `document_id = uuid.uuid5(uuid.NAMESPACE_URL, document_name)` so re-ingest of the same filename replaces the same logical document.
-3. Load pages/segments. For PDF, use page numbers from loader metadata. For DOCX (or any segment without page metadata), set **`page = 1` always** (never `null` or `0`) so citation logic in Milestone 3 stays simple.
-4. Clean each text segment with configurable regex patterns.
-5. Split with `RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100)`.
-6. Attach metadata to every chunk:
+1. Scan **`documents/` flat only** (non-recursive; no subfolders). Match `.pdf` / `.docx` case-insensitively. Other extensions ignored.
+2. `document_name` = basename only (e.g. `sop.pdf`). Derive stable `document_id = uuid.uuid5(uuid.NAMESPACE_URL, document_name)`. Flat scan + basename ID avoids path collisions; do not place two files with the same name (impossible in one flat folder anyway).
+3. Load into **one LangChain `Document` per page/segment**, keeping page metadata on each segment:
+   - PDF: use `page` from loader metadata (0- or 1-based as returned by PyPDFLoader — normalize to **1-based** for storage: `page = int(loader_page) + 1` if loader is 0-based).
+   - DOCX / missing page metadata: **`page = 1` always** (never `null` or `0`).
+4. Clean each segment’s text with configurable regex patterns (metadata unchanged).
+5. **Split per segment, do not concatenate the whole file first.** Use `RecursiveCharacterTextSplitter(...).split_documents(page_docs)` so each chunk **inherits** its source segment’s `page`. This keeps citation metadata accurate for Milestone 3.
+6. After splitting, assign pipeline metadata on every chunk (`chunk_id` is 0-based across the whole document after all pages are split):
 
 ```python
 {
   "document_id": "<uuid5-string>",
   "document_name": "nama_file.pdf",
-  "page": 8,                    # int; DOCX default 1
+  "page": 8,                    # int; inherited from source page; DOCX default 1
   "chunk_id": 12,               # 0-based index within this document
   "uploaded_at": "2026-07-25"   # date.today().isoformat()
 }
@@ -99,15 +101,17 @@ collection.delete(where={"document_id": "<uuid5>"})
 
 Then `add` documents, embeddings, metadatas, and ids.
 
+**M1 does not prune orphans:** removing a file from `documents/` does **not** delete its vectors from Chroma. Only re-ingest (replace) or a future admin/delete flow clears them.
+
 ## Cleaning
 
-Configurable patterns in `config` / `.env`, with sensible defaults:
+Configurable patterns in `config` / `.env`. Exact default regex strings are an **implementation detail** for the plan; behaviorally they must cover:
 
 - Lines that are essentially company-name / `Confidential` / `CONFIDENTIAL` headers or footers
 - Standalone page-number lines (`12`, `Page 12`, `- 12 -`)
 - Collapse excessive whitespace
 
-Cleaning runs before chunking so repeated scan artifacts do not inflate the index.
+Cleaning runs before chunking so repeated scan artifacts do not inflate the index. Patterns remain overridable via config.
 
 ## Error handling
 
@@ -132,7 +136,9 @@ Ingestion complete
   metadata: {...}
 ```
 
-Sample = first successfully indexed chunk; printed text may be truncated (~200 chars) for readability. Full text remains stored in Chroma.
+- **Documents processed** = count of files successfully indexed (fail-soft skips do **not** increment N).
+- **Chunks created** = total chunks written in this run.
+- Sample = first successfully indexed chunk; printed text may be truncated (~200 chars) for readability. Full text remains stored in Chroma.
 
 ## Configuration (`.env` / `config.py`)
 
@@ -162,4 +168,8 @@ Automated unit tests are optional for M1.
 | Project root | Use existing `rag/` workspace (no nested `knowledge-base-ai/`) |
 | `main.py` | Stub placeholder only |
 | DOCX `page` | Always `1` |
+| PDF `page` through chunking | Split per page Document (inherit `page`); never concat-then-split whole file |
+| PDF page numbering | Store 1-based page numbers |
+| Directory scan | Flat only under `documents/` |
+| Orphan files removed from disk | Not pruned from Chroma in M1 |
 | Module style | Thin modules + pipeline in `ingest.py` |
