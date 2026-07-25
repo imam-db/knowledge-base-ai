@@ -138,6 +138,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    for noisy in ("httpx", "httpcore", "huggingface_hub", "sentence_transformers"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     args = _build_parser().parse_args(list(argv) if argv is not None else None)
 
     timings: dict[str, float] = {}
