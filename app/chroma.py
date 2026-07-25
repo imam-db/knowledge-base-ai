@@ -8,10 +8,31 @@ from chromadb.api.models.Collection import Collection
 
 from app.config import settings
 
+_client: chromadb.PersistentClient | None = None
+_collections: dict[str, Collection] = {}
+
 
 def get_collection(name: str | None = None) -> Collection:
-    client = chromadb.PersistentClient(path=str(settings.chroma_dir))
-    return client.get_or_create_collection(name=name or settings.chroma_collection)
+    """Return a cached PersistentClient collection (initialized once at startup)."""
+    global _client
+    collection_name = name or settings.chroma_collection
+    if collection_name in _collections:
+        return _collections[collection_name]
+    if _client is None:
+        _client = chromadb.PersistentClient(path=str(settings.chroma_dir))
+    coll = _client.get_or_create_collection(name=collection_name)
+    _collections[collection_name] = coll
+    return coll
+
+
+def get_all_metadatas(collection: Collection | None = None) -> list[dict[str, Any]]:
+    """Fetch metadatas for every item in the collection."""
+    coll = collection or get_collection()
+    total = coll.count()
+    if total == 0:
+        return []
+    result = coll.get(include=["metadatas"], limit=total)
+    return list(result.get("metadatas") or [])
 
 
 def replace_document_chunks(

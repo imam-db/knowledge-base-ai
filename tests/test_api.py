@@ -111,3 +111,26 @@ def test_health():
         res = client.get("/api/v1/health")
     assert res.status_code == 200
     assert res.json()["status"] == "healthy"
+
+
+def test_stats():
+    with patch(
+        "app.api.routes.documents_service.get_stats",
+        return_value={"documents": 2, "chunks": 10},
+    ):
+        res = client.get("/api/v1/stats")
+    assert res.status_code == 200
+    assert res.json() == {"documents": 2, "chunks": 10}
+
+
+def test_documents_list():
+    payload = {
+        "documents": [
+            {"name": "sample_faq.docx", "pages": 1, "uploaded_at": "2026-07-25"},
+        ]
+    }
+    with patch("app.api.routes.documents_service.list_documents", return_value=payload):
+        res = client.get("/api/v1/documents")
+    assert res.status_code == 200
+    assert res.json()["documents"][0]["name"] == "sample_faq.docx"
+    assert res.json()["documents"][0]["pages"] == 1

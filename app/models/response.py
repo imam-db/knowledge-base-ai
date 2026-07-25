@@ -44,3 +44,18 @@ class HealthResponse(BaseModel):
 class RootResponse(BaseModel):
     service: str
     version: str
+
+
+class StatsResponse(BaseModel):
+    documents: int
+    chunks: int
+
+
+class DocumentInfo(BaseModel):
+    name: str
+    pages: int
+    uploaded_at: str
+
+
+class DocumentsResponse(BaseModel):
+    documents: list[DocumentInfo]
