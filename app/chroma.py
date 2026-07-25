@@ -33,3 +33,19 @@ def replace_document_chunks(
         metadatas=list(metadatas),
         ids=list(ids),
     )
+
+
+def query_similar(
+    query_embedding: Sequence[float],
+    n_results: int = 5,
+    collection: Collection | None = None,
+) -> dict[str, Any]:
+    """Query collection by embedding. Returns Chroma query result dict for one query."""
+    coll = collection or get_collection()
+    if coll.count() == 0:
+        return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+    return coll.query(
+        query_embeddings=[list(query_embedding)],
+        n_results=n_results,
+        include=["documents", "metadatas", "distances"],
+    )
