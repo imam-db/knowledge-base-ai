@@ -74,7 +74,7 @@ Aligns with `UploadResponse` field naming (`document_id`, `document_name`, `chun
 | `pages` | `int` | Existing |
 | `uploaded_at` | `str` | Existing |
 
-Grouping key remains logical document; include `document_id` when grouping (prefer metadata `document_id`; consistent across chunks).
+Grouping stays by `document_name`. Copy `document_id` from chunk metadata (all chunks of a doc share it). If metadata is missing `document_id`, fall back to `make_document_id(name)`.
 
 ## Service & Chroma
 
@@ -82,14 +82,14 @@ Grouping key remains logical document; include `document_id` when grouping (pref
 - `documents_service.delete_document(document_id) -> dict` raises typed errors mapped by the route:
   - not found → 404
   - delete/unlink failure → 500
-- Comment near file-unlink / not-found path: orphan-file limitation + re-upload self-heal (decision B).
+- Comment near file-unlink / not-found path: orphan-file limitation + re-upload self-heal (see Known limitation).
 
 ## Frontend
 
 - Types: add `document_id` to `DocumentInfo`; add `DeleteResponse`.
 - `api.ts`: `deleteDocument(documentId)` using `X-API-Key` from `VITE_ADMIN_API_KEY` (same pattern as `uploadDocument`).
 - `DocumentList`: actions column with delete control; before calling parent, `window.confirm` with document name; prop `onDelete(documentId: string)`.
-- `DocumentsPage`: handle `onDelete` → call API → on success refresh list (and stats if already refreshed elsewhere on that page); surface errors like upload failures.
+- `DocumentsPage`: handle `onDelete` → call API → on success refresh list; surface errors like upload failures. (Stats refresh is not required unless the page already refreshes stats today.)
 
 ## Error mapping
 
