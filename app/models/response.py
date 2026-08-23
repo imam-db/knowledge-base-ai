@@ -52,9 +52,17 @@ class StatsResponse(BaseModel):
 
 
 class DocumentInfo(BaseModel):
+    document_id: str
     name: str
     pages: int
     uploaded_at: str
+
+
+class DeleteResponse(BaseModel):
+    document_id: str
+    document_name: str
+    chunks_deleted: int
+    status: str
 
 
 class DocumentsResponse(BaseModel):

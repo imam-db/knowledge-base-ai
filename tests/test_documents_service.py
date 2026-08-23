@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from app.config import make_document_id
 from app.services.documents_service import get_stats, list_documents
 
 
@@ -29,6 +30,54 @@ def test_list_documents_groups_max_page_and_uploaded_at():
     with patch("app.services.documents_service.get_all_metadatas", return_value=metadatas):
         result = list_documents()
     assert result["documents"] == [
-        {"name": "FAQ.docx", "pages": 1, "uploaded_at": "2026-07-24"},
-        {"name": "SOP.pdf", "pages": 4, "uploaded_at": "2026-07-25"},
+        {
+            "document_id": make_document_id("FAQ.docx"),
+            "name": "FAQ.docx",
+            "pages": 1,
+            "uploaded_at": "2026-07-24",
+        },
+        {
+            "document_id": make_document_id("SOP.pdf"),
+            "name": "SOP.pdf",
+            "pages": 4,
+            "uploaded_at": "2026-07-25",
+        },
+    ]
+
+
+def test_list_documents_includes_document_id():
+    metadatas = [
+        {
+            "document_id": "11111111-1111-5111-8111-111111111111",
+            "document_name": "SOP.pdf",
+            "page": 1,
+            "uploaded_at": "2026-07-25",
+        },
+        {
+            "document_id": "11111111-1111-5111-8111-111111111111",
+            "document_name": "SOP.pdf",
+            "page": 4,
+            "uploaded_at": "2026-07-25",
+        },
+        {
+            "document_name": "FAQ.docx",
+            "page": 1,
+            "uploaded_at": "2026-07-24",
+        },
+    ]
+    with patch("app.services.documents_service.get_all_metadatas", return_value=metadatas):
+        result = list_documents()
+    assert result["documents"] == [
+        {
+            "document_id": make_document_id("FAQ.docx"),
+            "name": "FAQ.docx",
+            "pages": 1,
+            "uploaded_at": "2026-07-24",
+        },
+        {
+            "document_id": "11111111-1111-5111-8111-111111111111",
+            "name": "SOP.pdf",
+            "pages": 4,
+            "uploaded_at": "2026-07-25",
+        },
     ]

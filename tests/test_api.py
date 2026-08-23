@@ -126,7 +126,12 @@ def test_stats():
 def test_documents_list():
     payload = {
         "documents": [
-            {"name": "sample_faq.docx", "pages": 1, "uploaded_at": "2026-07-25"},
+            {
+                "document_id": "11111111-1111-5111-8111-111111111111",
+                "name": "sample_faq.docx",
+                "pages": 1,
+                "uploaded_at": "2026-07-25",
+            },
         ]
     }
     with patch("app.api.routes.documents_service.list_documents", return_value=payload):
@@ -134,3 +139,4 @@ def test_documents_list():
     assert res.status_code == 200
     assert res.json()["documents"][0]["name"] == "sample_faq.docx"
     assert res.json()["documents"][0]["pages"] == 1
+    assert res.json()["documents"][0]["document_id"] == "11111111-1111-5111-8111-111111111111"
