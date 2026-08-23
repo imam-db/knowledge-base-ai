@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from app.chroma import (
@@ -72,6 +73,9 @@ def delete_document(document_id: str) -> dict[str, Any]:
     document_name = str(chunks[0].get("document_name") or "").strip()
     if not document_name:
         raise DocumentDeleteError("Document metadata missing document_name")
+    document_name = Path(document_name).name
+    if not document_name or document_name in {".", ".."}:
+        raise DocumentDeleteError("Document metadata missing document_name")
     chunks_deleted = len(chunks)
     try:
         delete_document_chunks(document_id)
@@ -81,6 +85,10 @@ def delete_document(document_id: str) -> dict[str, Any]:
     if remaining:
         raise DocumentDeleteError("Failed to delete document chunks")
     path = settings.documents_dir / document_name
+    try:
+        path.resolve().relative_to(settings.documents_dir.resolve())
+    except ValueError as exc:
+        raise DocumentDeleteError("Invalid document path") from exc
     if path.exists():
         try:
             path.unlink()

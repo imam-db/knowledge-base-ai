@@ -190,3 +190,31 @@ def test_delete_document_verify_chunks_remain_raises():
     ):
         with pytest.raises(DocumentDeleteError, match="chunks"):
             delete_document("id-1")
+
+
+@pytest.mark.parametrize("unsafe_name", ["../a.pdf", "foo/a.pdf"])
+def test_delete_document_sanitizes_document_name_basename(
+    tmp_path, monkeypatch, unsafe_name
+):
+    monkeypatch.setattr(
+        "app.services.documents_service.settings.documents_dir",
+        tmp_path,
+    )
+    target = tmp_path / "a.pdf"
+    target.write_bytes(b"%PDF")
+    escaped = tmp_path.parent / "a.pdf"
+    escaped.write_bytes(b"trap")
+
+    metas = [{"document_id": "id-1", "document_name": unsafe_name}]
+    with (
+        patch(
+            "app.services.documents_service.get_chunks_for_document",
+            side_effect=[metas, []],
+        ),
+        patch("app.services.documents_service.delete_document_chunks"),
+    ):
+        result = delete_document("id-1")
+
+    assert result["document_name"] == "a.pdf"
+    assert not target.exists()
+    assert escaped.exists()
