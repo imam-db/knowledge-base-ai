@@ -9,3 +9,9 @@ chroma_db/
 dist/
 build/
 .worktrees/
+
+# Runtime document uploads (generated state) — keep folder + optional samples
+documents/*
+!documents/.gitkeep
+!documents/samples/
+!documents/samples/**
