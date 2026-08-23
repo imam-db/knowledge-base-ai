@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DocumentList } from '../components/DocumentList'
 import { DocumentUpload } from '../components/DocumentUpload'
-import { getDocuments, uploadDocument } from '../services/api'
+import { deleteDocument, getDocuments, uploadDocument } from '../services/api'
 import type { DocumentInfo } from '../types'
 
 export function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   const refreshDocuments = useCallback(async () => {
@@ -43,6 +45,7 @@ export function DocumentsPage() {
   const handleUpload = async (file: File) => {
     setUploading(true)
     setUploadError(null)
+    setDeleteError(null)
     setSuccess(null)
     try {
       const result = await uploadDocument(file)
@@ -54,6 +57,21 @@ export function DocumentsPage() {
       setUploadError(err instanceof Error ? err.message : 'Upload gagal')
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleDelete = async (documentId: string) => {
+    setDeletingId(documentId)
+    setDeleteError(null)
+    setSuccess(null)
+    try {
+      const result = await deleteDocument(documentId)
+      await refreshDocuments()
+      setSuccess(`Berhasil menghapus ${result.document_name} (${result.chunks_deleted} chunk).`)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Hapus gagal')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -80,9 +98,20 @@ export function DocumentsPage() {
             {uploadError}
           </div>
         )}
+        {deleteError && (
+          <div className="rounded-xl border border-[var(--color-danger)]/20 bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+            {deleteError}
+          </div>
+        )}
       </div>
 
-      <DocumentList documents={documents} loading={loading} error={listError} />
+      <DocumentList
+        documents={documents}
+        loading={loading}
+        error={listError}
+        deletingId={deletingId}
+        onDelete={(id) => void handleDelete(id)}
+      />
     </div>
   )
 }

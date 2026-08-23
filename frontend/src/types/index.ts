@@ -49,6 +49,7 @@ export interface StatsResponse {
 }
 
 export interface DocumentInfo {
+  document_id: string
   name: string
   pages: number
   uploaded_at: string
@@ -62,6 +63,13 @@ export interface UploadResponse {
   document_id: string
   document_name: string
   chunks_created: number
+  status: string
+}
+
+export interface DeleteResponse {
+  document_id: string
+  document_name: string
+  chunks_deleted: number
   status: string
 }
 

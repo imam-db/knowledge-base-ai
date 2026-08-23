@@ -1,5 +1,6 @@
 import type {
   AskResponse,
+  DeleteResponse,
   DocumentsResponse,
   HealthResponse,
   SearchResponse,
@@ -89,4 +90,23 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   }
 
   return response.json() as Promise<UploadResponse>
+}
+
+export async function deleteDocument(documentId: string): Promise<DeleteResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+  const apiKey = import.meta.env.VITE_ADMIN_API_KEY as string | undefined
+  if (apiKey) headers['X-API-Key'] = apiKey
+
+  const response = await fetch(
+    `${API_URL}/documents/${encodeURIComponent(documentId)}`,
+    { method: 'DELETE', headers },
+  )
+
+  if (!response.ok) {
+    throw new Error(await readErrorDetail(response))
+  }
+
+  return response.json() as Promise<DeleteResponse>
 }
