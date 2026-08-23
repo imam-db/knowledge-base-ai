@@ -338,6 +338,7 @@ class DocumentDeleteError(Exception):
 def delete_document(document_id: str) -> dict[str, Any]:
     # Known limitation: if unlink fails after chunks are deleted, retry DELETE
     # returns 404; orphan file self-heals on re-upload of the same filename.
+    from app.config import settings  # or top-level: same pattern as ingestion_service
     chunks = get_chunks_for_document(document_id)
     if not chunks:
         raise DocumentNotFoundError("Document not found")
