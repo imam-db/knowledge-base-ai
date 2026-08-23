@@ -6,6 +6,7 @@ from app.api.deps import require_admin_api_key
 from app.models.request import AskRequest, SearchRequest
 from app.models.response import (
     AskResponse,
+    DeleteResponse,
     DocumentsResponse,
     HealthResponse,
     RootResponse,
@@ -14,6 +15,7 @@ from app.models.response import (
     UploadResponse,
 )
 from app.services import answer_service, documents_service, health_service, ingestion_service, retrieval_service
+from app.services.documents_service import DocumentDeleteError, DocumentNotFoundError
 from app.services.ingestion_service import UploadValidationError
 
 router = APIRouter()
@@ -85,6 +87,28 @@ async def upload_document(
     except UploadValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return UploadResponse(**result)
+
+
+@router.delete(
+    "/api/v1/documents/{document_id}",
+    response_model=DeleteResponse,
+    summary="Delete an indexed document",
+    description=(
+        "Deletes all Chroma chunks for document_id, then removes the file under "
+        "documents/ if present. Requires X-API-Key."
+    ),
+)
+async def delete_document(
+    document_id: str,
+    _: None = Depends(require_admin_api_key),
+) -> DeleteResponse:
+    try:
+        result = documents_service.delete_document(document_id)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DocumentDeleteError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return DeleteResponse(**result)
 
 
 @router.post(
