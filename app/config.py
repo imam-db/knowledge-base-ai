@@ -45,6 +45,10 @@ class Settings:
         default_factory=lambda: os.getenv("DEBUG", "False").strip().lower()
         in {"1", "true", "yes", "on"}
     )
+    admin_api_key: str = field(default_factory=lambda: os.getenv("ADMIN_API_KEY", "").strip())
+    max_upload_bytes: int = field(
+        default_factory=lambda: int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+    )
 
     def cleaning_patterns(self) -> list[re.Pattern[str]]:
         patterns: list[str] = [

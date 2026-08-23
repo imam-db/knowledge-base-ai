@@ -59,3 +59,10 @@ class DocumentInfo(BaseModel):
 
 class DocumentsResponse(BaseModel):
     documents: list[DocumentInfo]
+
+
+class UploadResponse(BaseModel):
+    document_id: str
+    document_name: str
+    chunks_created: int
+    status: str

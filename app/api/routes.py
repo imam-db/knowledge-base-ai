@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from app.api.deps import require_admin_api_key
 from app.models.request import AskRequest, SearchRequest
 from app.models.response import (
     AskResponse,
@@ -10,8 +11,10 @@ from app.models.response import (
     RootResponse,
     SearchResponse,
     StatsResponse,
+    UploadResponse,
 )
-from app.services import answer_service, documents_service, health_service, retrieval_service
+from app.services import answer_service, documents_service, health_service, ingestion_service, retrieval_service
+from app.services.ingestion_service import UploadValidationError
 
 router = APIRouter()
 
@@ -57,6 +60,31 @@ async def stats() -> StatsResponse:
 )
 async def documents() -> DocumentsResponse:
     return DocumentsResponse(**documents_service.list_documents())
+
+
+@router.post(
+    "/api/v1/documents/upload",
+    response_model=UploadResponse,
+    summary="Upload and ingest a document",
+    description=(
+        "Accepts a single .pdf or .docx (max 20MB), saves it under documents/, "
+        "and runs sync ingestion for that file only. Requires X-API-Key. "
+        "Same filename replaces the previous document (UUID5 document_id)."
+    ),
+)
+async def upload_document(
+    file: UploadFile = File(...),
+    _: None = Depends(require_admin_api_key),
+) -> UploadResponse:
+    content = await file.read()
+    try:
+        result = ingestion_service.ingest_uploaded_file(
+            filename=file.filename or "",
+            content=content,
+        )
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return UploadResponse(**result)
 
 
 @router.post(
