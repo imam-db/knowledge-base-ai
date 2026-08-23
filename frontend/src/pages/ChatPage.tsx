@@ -100,9 +100,9 @@ export function ChatPage({ state, dispatch }: Props) {
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--color-ink)]">
-              Knowledge Application
+              Knowledge Base AI
             </h1>
-            <p className="text-xs text-[var(--color-ink-soft)]">Jawaban berbasis dokumen yang diindeks</p>
+            <p className="text-xs text-[var(--color-ink-soft)]">Jawaban berbasis dokumen internal</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <HealthIndicator health={health} loading={healthLoading} />

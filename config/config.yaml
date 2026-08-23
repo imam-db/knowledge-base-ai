@@ -3,8 +3,8 @@
 # Domain persona/guardrails belong in prompts/ — not here.
 
 app:
-  # Display name for this Knowledge Application (API identity / template branding).
-  name: Knowledge Application
+  # Display name for this Knowledge Application (API identity / UI branding).
+  name: Knowledge Base AI
   debug: false
 
 llm:
