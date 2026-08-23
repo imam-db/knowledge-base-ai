@@ -30,7 +30,7 @@ def _hit() -> SearchResult:
 def test_root():
     res = client.get("/")
     assert res.status_code == 200
-    assert res.json() == {"service": "Knowledge Base AI", "version": "0.1.0"}
+    assert res.json() == {"service": "Knowledge Application", "version": "0.1.0"}
 
 
 def test_ask_validation_empty_question():

@@ -17,6 +17,7 @@ from app.models.response import (
 from app.services import answer_service, documents_service, health_service, ingestion_service, retrieval_service
 from app.services.documents_service import DocumentDeleteError, DocumentNotFoundError
 from app.services.ingestion_service import UploadValidationError
+from app.config import settings
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ router = APIRouter()
     description="Basic service identity and version.",
 )
 async def root() -> RootResponse:
-    return RootResponse(service="Knowledge Base AI", version="0.1.0")
+    return RootResponse(service=settings.app_name, version="0.1.0")
 
 
 @router.get(

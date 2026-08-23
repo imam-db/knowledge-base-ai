@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.chroma import get_collection
+from app.config import settings
 from app.embedding import get_model
 
 logger = logging.getLogger(__name__)
@@ -30,9 +31,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Knowledge Base AI",
+    title=settings.app_name,
     version="0.1.0",
-    description="RAG API for internal company documents (ingestion, retrieval, grounded answers).",
+    description="RAG API for knowledge documents (ingestion, retrieval, grounded answers).",
     lifespan=lifespan,
 )
 

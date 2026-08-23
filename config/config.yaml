@@ -1,0 +1,30 @@
+app:
+  name: Knowledge Application
+  debug: false
+
+llm:
+  provider: groq
+  model: llama-3.3-70b-versatile
+
+embedding:
+  provider: sentence-transformers
+  model: paraphrase-multilingual-MiniLM-L12-v2
+
+chunking:
+  size: 700
+  overlap: 100
+
+retrieval:
+  distance_threshold: 25.0
+
+vector_store:
+  provider: chroma
+  collection: knowledge_base
+  path: ./chroma_db
+
+documents:
+  path: ./documents
+  max_file_size_mb: 20
+
+cleaning:
+  company_header: ""
