@@ -21,6 +21,7 @@
 | `app/services/documents_service.py` | Include `document_id` in list; `delete_document`; typed errors |
 | `app/api/routes.py` | `DELETE /api/v1/documents/{document_id}` |
 | `tests/test_documents_service.py` | List `document_id` + delete service tests |
+| `tests/test_api.py` | Update `test_documents_list` mock payload for required `document_id` |
 | `tests/test_delete_api.py` | Route auth / 404 / 200 / 500 |
 | `frontend/src/types/index.ts` | Types |
 | `frontend/src/services/api.ts` | `deleteDocument` |
@@ -35,6 +36,7 @@
 - Modify: `app/models/response.py`
 - Modify: `app/services/documents_service.py`
 - Modify: `tests/test_documents_service.py`
+- Modify: `tests/test_api.py` (`test_documents_list`)
 
 - [ ] **Step 1: Write failing list test for `document_id`**
 
@@ -83,6 +85,28 @@ def test_list_documents_includes_document_id():
 
 Also update `test_list_documents_groups_max_page_and_uploaded_at` expectations to include `document_id` (use `make_document_id` for names without id in fixtures).
 
+Update `tests/test_api.py::test_documents_list` mock payload so response validation still passes once `DocumentInfo.document_id` is required:
+
+```python
+def test_documents_list():
+    payload = {
+        "documents": [
+            {
+                "document_id": "11111111-1111-5111-8111-111111111111",
+                "name": "sample_faq.docx",
+                "pages": 1,
+                "uploaded_at": "2026-07-25",
+            },
+        ]
+    }
+    with patch("app.api.routes.documents_service.list_documents", return_value=payload):
+        res = client.get("/api/v1/documents")
+    assert res.status_code == 200
+    assert res.json()["documents"][0]["name"] == "sample_faq.docx"
+    assert res.json()["documents"][0]["pages"] == 1
+    assert res.json()["documents"][0]["document_id"] == "11111111-1111-5111-8111-111111111111"
+```
+
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_documents_service.py::test_list_documents_includes_document_id -v`  
@@ -107,33 +131,40 @@ class DeleteResponse(BaseModel):
     status: str
 ```
 
-In `list_documents`, when creating/updating a group:
+In `list_documents`, when creating/updating a group (key = `document_name`):
 
 ```python
 from app.config import make_document_id
 
-# when first seeing name:
-doc_id = str(meta.get("document_id") or "").strip() or make_document_id(name)
-grouped[name] = {
-    "document_id": doc_id,
-    "name": name,
-    "pages": page,
-    "uploaded_at": uploaded_at,
-}
-# if later chunk has document_id and current was fallback-only, prefer explicit metadata id
+meta_id = str(meta.get("document_id") or "").strip()
+doc_id = meta_id or make_document_id(name)
+current = grouped.get(name)
+if current is None:
+    grouped[name] = {
+        "document_id": doc_id,
+        "name": name,
+        "pages": page,
+        "uploaded_at": uploaded_at,
+    }
+else:
+    if page > current["pages"]:
+        current["pages"] = page
+    if not current["uploaded_at"] and uploaded_at:
+        current["uploaded_at"] = uploaded_at
+    # Prefer an explicit metadata document_id over a fallback-computed one
+    if meta_id:
+        current["document_id"] = meta_id
 ```
-
-Keep grouping key = `document_name`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/test_documents_service.py -v`  
+Run: `pytest tests/test_documents_service.py tests/test_api.py::test_documents_list -v`  
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/models/response.py app/services/documents_service.py tests/test_documents_service.py
+git add app/models/response.py app/services/documents_service.py tests/test_documents_service.py tests/test_api.py
 git commit -m "feat: include document_id in documents list response"
 ```
 
@@ -544,10 +575,25 @@ export async function deleteDocument(documentId: string): Promise<DeleteResponse
 - [ ] **Step 3: DocumentsPage wiring**
 
 - Import `deleteDocument`.
-- State: `deleteError` (or reuse a generic action error pattern like upload).
-- `handleDelete = async (documentId: string) => { ... deleteDocument ... refreshDocuments ... }`.
+- State: `deleteError: string | null` (mirror `uploadError`).
+- Handler (mirror upload):
+
+```typescript
+const handleDelete = async (documentId: string) => {
+  setDeleteError(null)
+  setSuccess(null)
+  try {
+    const result = await deleteDocument(documentId)
+    await refreshDocuments()
+    setSuccess(`Berhasil menghapus ${result.document_name} (${result.chunks_deleted} chunk).`)
+  } catch (err) {
+    setDeleteError(err instanceof Error ? err.message : 'Hapus gagal')
+  }
+}
+```
+
 - Pass `onDelete={(id) => void handleDelete(id)}` to `DocumentList`.
-- Show delete error banner similar to `uploadError`.
+- Show `deleteError` banner similar to `uploadError`.
 
 - [ ] **Step 4: Manual smoke**
 
@@ -571,8 +617,8 @@ git commit -m "feat: add document delete control on Documents page"
 
 - [ ] **Step 1: Run full relevant pytest**
 
-Run: `pytest tests/test_documents_service.py tests/test_delete_api.py tests/test_upload_api.py -v`  
-Expected: all PASS
+Run: `pytest tests/test_documents_service.py tests/test_delete_api.py tests/test_upload_api.py tests/test_api.py -v`  
+Expected: all PASS (especially `test_documents_list` with `document_id`)
 
 - [ ] **Step 2: Optional typecheck frontend**
 
