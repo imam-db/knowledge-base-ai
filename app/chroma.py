@@ -35,6 +35,26 @@ def get_all_metadatas(collection: Collection | None = None) -> list[dict[str, An
     return list(result.get("metadatas") or [])
 
 
+def get_chunks_for_document(
+    document_id: str,
+    collection: Collection | None = None,
+) -> list[dict[str, Any]]:
+    coll = collection or get_collection()
+    result = coll.get(
+        where={"document_id": document_id},
+        include=["metadatas"],
+    )
+    return [m for m in (result.get("metadatas") or []) if m]
+
+
+def delete_document_chunks(
+    document_id: str,
+    collection: Collection | None = None,
+) -> None:
+    coll = collection or get_collection()
+    coll.delete(where={"document_id": document_id})
+
+
 def replace_document_chunks(
     *,
     document_id: str,
