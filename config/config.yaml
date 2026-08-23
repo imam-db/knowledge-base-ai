@@ -1,30 +1,43 @@
+# Application parameters (not secrets).
+# Secrets belong in .env — see .env.example.
+# Domain persona/guardrails belong in prompts/ — not here.
+
 app:
+  # Display name for this Knowledge Application (API identity / template branding).
   name: Knowledge Application
   debug: false
 
 llm:
   provider: groq
+  # Chat model id passed to the LLM provider.
   model: llama-3.3-70b-versatile
 
 embedding:
   provider: sentence-transformers
+  # Local embedding model name (sentence-transformers).
   model: paraphrase-multilingual-MiniLM-L12-v2
 
 chunking:
+  # Character-ish chunk size / overlap used at ingest time.
   size: 700
   overlap: 100
 
 retrieval:
+  # Chroma distance threshold: keep chunks with distance <= this value.
+  # Scale depends on the embedding model and Chroma metric — tune per corpus.
   distance_threshold: 25.0
 
 vector_store:
   provider: chroma
   collection: knowledge_base
+  # Persistent Chroma path (generated state; gitignored).
   path: ./chroma_db
 
 documents:
+  # Runtime document directory (gitignored except documents/samples/).
   path: ./documents
   max_file_size_mb: 20
 
 cleaning:
+  # Optional header line to strip during load (empty = Confidential / page patterns only).
   company_header: ""
