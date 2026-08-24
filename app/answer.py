@@ -5,6 +5,7 @@ import logging
 import sys
 import time
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any, Sequence
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -12,8 +13,9 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from app.config import settings
+from app.core.llm import get_llm_provider
 from app.llm import call_groq
-from app.prompts import GUARDRAIL_MESSAGE, build_prompt
+from app.prompts import GUARDRAIL_MESSAGE, build_prompt, get_guardrail_message
 from app.retrieve import SearchResult, search
 
 logger = logging.getLogger(__name__)
@@ -25,8 +27,15 @@ def _filter_chunks(chunks: Sequence[SearchResult], threshold: float) -> list[Sea
     return sorted(filtered, key=lambda c: (c.distance, c.rank))
 
 
+def _snippet(text: str, max_len: int = 220) -> str:
+    cleaned = " ".join((text or "").split())
+    if len(cleaned) <= max_len:
+        return cleaned
+    return cleaned[: max_len - 1].rstrip() + "…"
+
+
 def _build_sources(chunks: Sequence[SearchResult]) -> list[dict[str, Any]]:
-    """Dedup by (document, page), preserving best-distance order."""
+    """Dedup by (document, page), preserving best-distance order; include snippet."""
     seen: set[tuple[str, int]] = set()
     sources: list[dict[str, Any]] = []
     for chunk in chunks:
@@ -34,26 +43,42 @@ def _build_sources(chunks: Sequence[SearchResult]) -> list[dict[str, Any]]:
         if key in seen:
             continue
         seen.add(key)
-        sources.append({"document": chunk.document_name, "page": chunk.page})
+        sources.append(
+            {
+                "document": chunk.document_name,
+                "page": chunk.page,
+                "snippet": _snippet(chunk.text),
+                "chunk_id": chunk.chunk_id,
+                "distance": chunk.distance,
+            }
+        )
     return sources
 
 
 def _require_groq_api_key() -> None:
     if not settings.groq_api_key:
-        raise EnvironmentError("GROQ_API_KEY tidak ditemukan di environment")
+        raise EnvironmentError("GROQ_API_KEY is missing from the environment")
+
+
+def _classify_status(answer: str, sources: Sequence[dict[str, Any]]) -> str:
+    guardrail = get_guardrail_message()
+    if not sources or answer.strip() == guardrail:
+        return "not_found"
+    return "answered"
 
 
 def answer_question(
     question: str,
-    top_k: int = 5,
+    top_k: int | None = None,
     timings: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Orchestrate retrieval → threshold filter → Groq → backend citations."""
+    resolved_top_k = top_k if top_k is not None else settings.retrieval.top_k
     local_timings: dict[str, float] = {}
     search_timings: dict[str, float] = {}
 
     t0 = time.perf_counter()
-    hits = search(question, top_k=top_k, timings=search_timings)
+    hits = search(question, top_k=resolved_top_k, timings=search_timings)
     local_timings["retrieval_ms"] = (time.perf_counter() - t0) * 1000
     local_timings["embed_ms"] = search_timings.get("embed_ms", 0.0)
     local_timings["chroma_ms"] = search_timings.get("chroma_ms", 0.0)
@@ -74,7 +99,7 @@ def answer_question(
 
     best_distance = min((c.distance for c in filtered), default=None)
     metadata = {
-        "top_k": top_k,
+        "top_k": resolved_top_k,
         "returned_chunks": len(filtered),
         "best_distance": best_distance,
     }
@@ -92,6 +117,7 @@ def answer_question(
             "sources": [],
             "retrieval_metadata": metadata,
             "confidence": None,
+            "status": "not_found",
         }
 
     logger.info("Proceeding to Groq with %s filtered chunk(s)", len(filtered))
@@ -111,12 +137,70 @@ def answer_question(
     if timings is not None:
         timings.update(local_timings)
 
+    sources = _build_sources(filtered)
     return {
         "answer": answer,
-        "sources": _build_sources(filtered),
+        "sources": sources,
         "retrieval_metadata": metadata,
         "confidence": None,
+        "status": _classify_status(answer, sources),
     }
+
+
+def iter_answer_events(
+    question: str,
+    top_k: int | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Yield SSE-oriented dict events: status, sources, token, done, error."""
+    resolved_top_k = top_k if top_k is not None else settings.retrieval.top_k
+    yield {"event": "status", "data": {"phase": "retrieving"}}
+
+    hits = search(question, top_k=resolved_top_k)
+    filtered = _filter_chunks(hits, settings.retrieval_distance_threshold)
+    metadata = {
+        "top_k": resolved_top_k,
+        "returned_chunks": len(filtered),
+        "best_distance": min((c.distance for c in filtered), default=None),
+    }
+
+    if not filtered:
+        yield {
+            "event": "done",
+            "data": {
+                "answer": GUARDRAIL_MESSAGE,
+                "sources": [],
+                "retrieval_metadata": metadata,
+                "confidence": None,
+                "status": "not_found",
+            },
+        }
+        return
+
+    sources = _build_sources(filtered)
+    yield {"event": "sources", "data": {"sources": sources, "retrieval_metadata": metadata}}
+    yield {"event": "status", "data": {"phase": "generating"}}
+
+    try:
+        _require_groq_api_key()
+        prompt = build_prompt(question, filtered)
+        parts: list[str] = []
+        for delta in get_llm_provider().generate_stream(prompt):
+            parts.append(delta)
+            yield {"event": "token", "data": {"token": delta}}
+        answer = "".join(parts).strip()
+        yield {
+            "event": "done",
+            "data": {
+                "answer": answer,
+                "sources": sources,
+                "retrieval_metadata": metadata,
+                "confidence": None,
+                "status": _classify_status(answer, sources),
+            },
+        }
+    except Exception as exc:
+        yield {"event": "error", "data": {"detail": str(exc)}}
+
 
 
 def _format_output(
@@ -131,7 +215,7 @@ def _format_output(
         lines.append("  (none)")
     else:
         for src in sources:
-            lines.append(f"  - {src['document']}, halaman {src['page']}")
+            lines.append(f"  - {src['document']}, page {src['page']}")
 
     if verbose:
         meta = result.get("retrieval_metadata") or {}

@@ -10,7 +10,7 @@ type Props = {
 
 export function DocumentList({ documents, loading, error, deletingId, onDelete }: Props) {
   if (loading) {
-    return <p className="text-sm text-[var(--color-ink-soft)]">Memuat dokumen…</p>
+    return <p className="text-sm text-[var(--color-ink-soft)]">Loading documents…</p>
   }
 
   if (error) {
@@ -24,7 +24,7 @@ export function DocumentList({ documents, loading, error, deletingId, onDelete }
   if (!documents.length) {
     return (
       <p className="rounded-xl border border-dashed border-[var(--color-line)] bg-white/70 px-4 py-6 text-sm text-[var(--color-ink-soft)]">
-        Belum ada dokumen ter-index. Jalankan ingest dulu.
+        No indexed documents yet. Run ingest first.
       </p>
     )
   }
@@ -51,12 +51,12 @@ export function DocumentList({ documents, loading, error, deletingId, onDelete }
                   type="button"
                   disabled={deletingId === doc.document_id}
                   onClick={() => {
-                    if (!window.confirm(`Hapus ${doc.name}? Chunk dan file akan dihapus.`)) return
+                    if (!window.confirm(`Delete ${doc.name}? Chunks and file will be removed.`)) return
                     onDelete(doc.document_id)
                   }}
                   className="text-sm font-medium text-[var(--color-danger)] transition hover:text-[var(--color-danger)]/80 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {deletingId === doc.document_id ? 'Menghapus…' : 'Hapus'}
+                  {deletingId === doc.document_id ? 'Deleting…' : 'Delete'}
                 </button>
               </td>
             </tr>

@@ -1,0 +1,55 @@
+# Playground deploy — self-serve upload + optional preloaded sample docs.
+# Use: CONFIG_PATH=config/config.playground.yaml uvicorn app.main:app --port 8000
+
+app:
+  name: Knowledge Base AI — Playground
+  debug: false
+
+ui:
+  mode: playground
+  show_documents: true
+  show_about: false
+  back_link: https://vvizh.com
+  back_label: vvizh
+  subtitle: Upload your own documents or try the sample handbook
+  empty_state:
+    title: Start with a sample or upload
+    description: Ask the indexed sample handbook, or upload your own PDF/DOCX.
+  example_questions:
+    - How many League Matches does each Club play against every other Club?
+    - What are the Profitability and Sustainability Rules?
+    - When does the Winter Transfer Window open and close?
+    - What happens to Clubs relegated from the Premier League?
+
+llm:
+  provider: groq
+  model: openai/gpt-oss-120b
+
+embedding:
+  provider: sentence-transformers
+  model: paraphrase-multilingual-MiniLM-L12-v2
+
+chunking:
+  size: 700
+  overlap: 100
+
+retrieval:
+  distance_threshold: 25.0
+  top_k: 5
+  candidate_k: 40
+  hybrid:
+    enabled: true
+    rrf_k: 60
+    keyword_pass_rank: 0
+
+vector_store:
+  provider: chroma
+  collection: knowledge_base
+  path: ./chroma_db
+
+documents:
+  path: ./documents
+  max_file_size_mb: 20
+
+cleaning:
+  company_header: ""

@@ -31,7 +31,7 @@ export function DocumentsPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          setListError(err instanceof Error ? err.message : 'Gagal memuat dokumen')
+          setListError(err instanceof Error ? err.message : 'Failed to load documents')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -51,10 +51,10 @@ export function DocumentsPage() {
       const result = await uploadDocument(file)
       await refreshDocuments()
       setSuccess(
-        `Berhasil mengunggah ${result.document_name} (${result.chunks_created} chunk).`,
+        `Uploaded ${result.document_name} (${result.chunks_created} chunks).`,
       )
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload gagal')
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -67,9 +67,9 @@ export function DocumentsPage() {
     try {
       const result = await deleteDocument(documentId)
       await refreshDocuments()
-      setSuccess(`Berhasil menghapus ${result.document_name} (${result.chunks_deleted} chunk).`)
+      setSuccess(`Deleted ${result.document_name} (${result.chunks_deleted} chunks).`)
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Hapus gagal')
+      setDeleteError(err instanceof Error ? err.message : 'Delete failed')
     } finally {
       setDeletingId(null)
     }
@@ -81,8 +81,8 @@ export function DocumentsPage() {
         <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)]">
           Documents
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-          Daftar dokumen yang sudah ter-index di knowledge base.
+        <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-[var(--color-ink-soft)]">
+          Documents indexed in the knowledge base.
         </p>
       </div>
 

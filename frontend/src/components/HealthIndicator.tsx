@@ -8,7 +8,7 @@ type Props = {
 export function HealthIndicator({ health, loading }: Props) {
   if (loading) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-[var(--color-ink-soft)]">
+      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-panel)]/80 px-3 py-1 font-[family-name:var(--font-mono)] text-xs font-medium text-[var(--color-ink-soft)]">
         Checking…
       </span>
     )
@@ -21,7 +21,7 @@ export function HealthIndicator({ health, loading }: Props) {
 
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-[family-name:var(--font-mono)] text-xs font-medium ${
         ready
           ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-deep)]'
           : 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]'

@@ -31,7 +31,7 @@ GUARDRAIL_MESSAGE = get_guardrail_message()
 
 def build_prompt(question: str, chunks: Sequence[SearchResult]) -> str:
     """Build a grounded QA prompt. Does not call LLM or retrieval."""
-    parts: list[str] = [get_system_instructions(), "", "Konteks:"]
+    parts: list[str] = [get_system_instructions(), "", "Context:"]
     for i, chunk in enumerate(chunks, start=1):
         parts.extend(
             [
@@ -43,5 +43,5 @@ def build_prompt(question: str, chunks: Sequence[SearchResult]) -> str:
                 chunk.text,
             ]
         )
-    parts.extend(["", f"Pertanyaan: {question}", "", "Jawaban:"])
+    parts.extend(["", f"Question: {question}", "", "Answer:"])
     return "\n".join(parts)

@@ -132,6 +132,10 @@ def run_ingest() -> int:
         if sample is None and first is not None:
             sample = first
 
+    from app.keyword_index import reset_keyword_index
+
+    reset_keyword_index()
+
     print("Ingestion complete")
     print(f"- Documents processed: {processed}")
     print(f"- Chunks created: {total_chunks}")

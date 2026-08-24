@@ -13,7 +13,7 @@ export function ErrorBanner({ message, onDismiss }: Props) {
           onClick={onDismiss}
           className="shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide hover:bg-white/50"
         >
-          Tutup
+          Dismiss
         </button>
       )}
     </div>

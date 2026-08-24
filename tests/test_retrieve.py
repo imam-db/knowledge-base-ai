@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from app.retrieve import SearchResult, search
+
+
+def _disable_hybrid():
+    retrieval = MagicMock()
+    retrieval.hybrid.enabled = False
+    retrieval.top_k = 5
+    retrieval.candidate_k = 20
+    return retrieval
 
 
 def test_search_empty_query_returns_empty_list():
@@ -26,10 +34,12 @@ def test_search_maps_chroma_hits_to_ranked_results():
     }
 
     with (
+        patch("app.retrieve.settings") as settings_mock,
         patch("app.retrieve.get_model"),
         patch("app.retrieve.embed_texts", return_value=fake_embedding) as embed_mock,
         patch("app.retrieve.query_similar", return_value=fake_chroma) as query_mock,
     ):
+        settings_mock.retrieval = _disable_hybrid()
         results = search("prosedur cuti", top_k=2)
 
     embed_mock.assert_called_once_with(["prosedur cuti"])
@@ -42,6 +52,7 @@ def test_search_maps_chroma_hits_to_ranked_results():
         chunk_id=12,
         distance=0.21,
         text="first chunk",
+        chroma_id="id-a",
     )
     assert results[1].document_name == "FAQ.pdf"
     assert results[1].distance == 0.44
@@ -49,6 +60,7 @@ def test_search_maps_chroma_hits_to_ranked_results():
 
 def test_search_zero_hits_returns_empty_list():
     with (
+        patch("app.retrieve.settings") as settings_mock,
         patch("app.retrieve.get_model"),
         patch("app.retrieve.embed_texts", return_value=[[0.1]]),
         patch(
@@ -56,4 +68,5 @@ def test_search_zero_hits_returns_empty_list():
             return_value={"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]},
         ),
     ):
+        settings_mock.retrieval = _disable_hybrid()
         assert search("anything") == []

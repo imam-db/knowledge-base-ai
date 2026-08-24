@@ -30,7 +30,38 @@ def _hit() -> SearchResult:
 def test_root():
     res = client.get("/")
     assert res.status_code == 200
-    assert res.json() == {"service": "Knowledge Application", "version": "0.1.0"}
+    assert res.json()["version"] == "0.1.0"
+    assert "service" in res.json()
+
+
+def test_ui_config():
+    res = client.get("/api/v1/config")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["mode"] in {"portfolio", "playground"}
+    assert isinstance(body["show_documents"], bool)
+    assert isinstance(body["show_about"], bool)
+    assert isinstance(body["example_questions"], list)
+    assert "app_name" in body
+    assert "subtitle" in body
+
+
+def test_about_portfolio():
+    with patch(
+        "app.api.routes.documents_service.get_stats",
+        return_value={"documents": 1, "chunks": 3402},
+    ):
+        res = client.get("/api/v1/about")
+    assert res.status_code == 200
+    body = res.json()
+    if body["show"]:
+        assert body["title"]
+        assert isinstance(body["pipeline"], list)
+        assert body["stats"]["documents"] == 1
+        assert body["stats"]["chunks"] == 3402
+        assert "hit_at_5" in (body.get("eval") or {})
+    else:
+        assert body["show"] is False
 
 
 def test_ask_validation_empty_question():

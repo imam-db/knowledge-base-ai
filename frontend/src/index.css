@@ -2,18 +2,20 @@
 
 @theme {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --color-ink: #14201b;
-  --color-ink-soft: #3d4f46;
-  --color-paper: #f3efe6;
-  --color-paper-2: #e8e1d4;
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+  --color-ink: #060d0a;
+  --color-ink-soft: #5a6b62;
+  --color-paper: #f4f7f5;
+  --color-paper-2: #e6eee9;
   --color-panel: #ffffff;
-  --color-accent: #1f6f5b;
-  --color-accent-deep: #145544;
-  --color-accent-soft: #d7eee6;
+  --color-accent: #0c8f54;
+  --color-accent-deep: #086b3f;
+  --color-accent-soft: #e6f9ef;
+  --color-accent-bright: #39ff8f;
   --color-danger: #b42318;
   --color-danger-soft: #fde8e6;
-  --color-line: #d5cdc0;
+  --color-line: #d0dbd5;
 }
 
 html,
@@ -27,8 +29,8 @@ body {
   font-family: var(--font-sans);
   color: var(--color-ink);
   background:
-    radial-gradient(1200px 600px at 10% -10%, #d9ebe3 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #efe6d4 0%, transparent 45%),
+    radial-gradient(1100px 560px at 8% -12%, #d8f5e6 0%, transparent 55%),
+    radial-gradient(900px 480px at 100% 0%, #e8f0ea 0%, transparent 45%),
     var(--color-paper);
 }
 

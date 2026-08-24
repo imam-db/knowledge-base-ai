@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
@@ -11,7 +12,22 @@ from app.config import Settings, settings
 SUPPORTED_SUFFIXES = {".pdf", ".docx"}
 
 
+def normalize_pdf_text(text: str) -> str:
+    """Fix common PDF extraction artifacts before chunking."""
+    normalized = unicodedata.normalize("NFKC", text)
+    normalized = normalized.replace("\u2019", "'").replace("\u2018", "'")
+    normalized = normalized.replace("\u201c", '"').replace("\u201d", '"')
+    normalized = normalized.replace("\u2013", "-").replace("\u2014", "-")
+    # U+FFFD often appears where an apostrophe was lost in PDF extraction.
+    normalized = re.sub(r"(\w)\ufffd(\w)", r"\1'\2", normalized)
+    normalized = re.sub(r"(\w)\ufffd(\s)", r"\1'\2", normalized)
+    normalized = normalized.replace("\ufffd", "")
+    normalized = re.sub(r" +", " ", normalized)
+    return normalized
+
+
 def clean_text(text: str, patterns: list[re.Pattern[str]]) -> str:
+    text = normalize_pdf_text(text)
     lines: list[str] = []
     for line in text.splitlines():
         if any(p.match(line.strip()) for p in patterns):

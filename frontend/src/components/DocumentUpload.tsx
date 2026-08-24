@@ -41,9 +41,9 @@ export function DocumentUpload({ uploading, onUpload }: Props) {
     >
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-[var(--color-ink)]">Upload dokumen</p>
+          <p className="text-sm font-medium text-[var(--color-ink)]">Upload document</p>
           <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
-            PDF atau DOCX, maksimal 20MB. Nama file yang sama akan mengganti dokumen lama.
+            PDF or DOCX, max 20MB. Uploading the same filename replaces the previous document.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -62,15 +62,15 @@ export function DocumentUpload({ uploading, onUpload }: Props) {
             type="button"
             disabled={uploading}
             onClick={() => inputRef.current?.click()}
-            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-deep)] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-[var(--color-ink)] px-4 py-2 font-[family-name:var(--font-mono)] text-sm font-medium text-[var(--color-accent-bright)] transition hover:bg-[var(--color-accent-deep)] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploading ? 'Memproses…' : 'Pilih file'}
+            {uploading ? 'Processing…' : 'Choose file'}
           </button>
         </div>
       </div>
       {uploading && (
         <p className="mt-4 text-sm font-medium text-[var(--color-accent-deep)]">
-          Memproses dokumen…
+          Processing document…
         </p>
       )}
     </div>

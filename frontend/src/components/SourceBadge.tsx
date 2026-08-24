@@ -3,11 +3,11 @@ import { useState } from 'react'
 
 type Props = {
   sources: Source[]
-  bestDistance?: number | null
 }
 
-export function SourceBadge({ sources, bestDistance = null }: Props) {
+export function SourceBadge({ sources }: Props) {
   const [open, setOpen] = useState(false)
+  const [showTech, setShowTech] = useState(false)
 
   if (!sources.length) return null
 
@@ -27,20 +27,31 @@ export function SourceBadge({ sources, bestDistance = null }: Props) {
           {sources.map((source, index) => (
             <div
               key={`${source.document}-${source.page}-${index}`}
-              className="rounded-lg bg-white px-3 py-2 text-sm text-[var(--color-ink-soft)] shadow-sm"
+              className="rounded-lg bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink-soft)] shadow-sm"
             >
               <div className="font-medium text-[var(--color-ink)]">
-                📄 {source.document} • Page {source.page}
+                {source.document.replace(/\.pdf$/i, '')} · Page {source.page}
               </div>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs">
-                {source.chunk_id != null && <span>chunk_id: {source.chunk_id}</span>}
-                {source.distance != null && <span>distance: {source.distance.toFixed(2)}</span>}
-                {source.distance == null && bestDistance != null && index === 0 && (
-                  <span>best distance: {bestDistance.toFixed(2)}</span>
-                )}
-              </div>
+              {source.snippet && (
+                <p className="mt-1 text-xs leading-relaxed text-[var(--color-ink-soft)]">
+                  “{source.snippet}”
+                </p>
+              )}
+              {showTech && (
+                <div className="mt-1 flex flex-wrap gap-3 text-[10px] uppercase tracking-wide">
+                  {source.chunk_id != null && <span>chunk {source.chunk_id}</span>}
+                  {source.distance != null && <span>distance {source.distance.toFixed(2)}</span>}
+                </div>
+              )}
             </div>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowTech((v) => !v)}
+            className="text-[10px] uppercase tracking-wide text-[var(--color-ink-soft)] hover:text-[var(--color-accent-deep)]"
+          >
+            {showTech ? 'Hide technical details' : 'Technical details'}
+          </button>
         </div>
       )}
     </div>

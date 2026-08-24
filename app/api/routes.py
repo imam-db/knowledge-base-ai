@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import require_admin_api_key
 from app.models.request import AskRequest, SearchRequest
 from app.models.response import (
+    AboutResponse,
     AskResponse,
     DeleteResponse,
     DocumentsResponse,
+    EvalSnapshot,
     HealthResponse,
+    PipelineStep,
+    AboutLiveStats,
     RootResponse,
     SearchResponse,
     StatsResponse,
+    UiConfigResponse,
     UploadResponse,
 )
 from app.services import answer_service, documents_service, health_service, ingestion_service, retrieval_service
@@ -22,6 +31,9 @@ from app.config import settings
 router = APIRouter()
 
 
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
 @router.get(
     "/",
     response_model=RootResponse,
@@ -30,6 +42,78 @@ router = APIRouter()
 )
 async def root() -> RootResponse:
     return RootResponse(service=settings.app_name, version="0.1.0")
+
+
+@router.get(
+    "/api/v1/config",
+    response_model=UiConfigResponse,
+    summary="Public UI config",
+    description="Frontend-facing UI mode and copy (portfolio vs playground).",
+)
+async def ui_config() -> UiConfigResponse:
+    ui = settings.ui
+    return UiConfigResponse(
+        app_name=settings.app_name,
+        mode=ui.mode,  # type: ignore[arg-type]
+        show_documents=ui.show_documents,
+        show_about=ui.show_about,
+        back_link=ui.back_link,
+        back_label=ui.back_label,
+        subtitle=ui.subtitle,
+        empty_state_title=ui.empty_state_title,
+        empty_state_description=ui.empty_state_description,
+        example_questions=ui.example_questions,
+    )
+
+
+@router.get(
+    "/api/v1/about",
+    response_model=AboutResponse,
+    summary="Portfolio about / case study",
+    description="Narrative case study plus live index stats (portfolio mode).",
+)
+async def about() -> AboutResponse:
+    if not settings.ui.show_about or settings.about is None:
+        return AboutResponse(show=False)
+
+    about_cfg = settings.about
+    index_stats = documents_service.get_stats()
+    eval_snapshot: EvalSnapshot | None = None
+    if about_cfg.eval is not None:
+        ev = about_cfg.eval
+        eval_snapshot = EvalSnapshot(
+            dataset=ev.dataset,
+            questions=ev.questions,
+            hit_at_5=ev.hit_at_5,
+            mrr=ev.mrr,
+            unanswerable_empty_rate=ev.unanswerable_empty_rate,
+            note=ev.note or None,
+        )
+
+    return AboutResponse(
+        show=True,
+        title=about_cfg.title,
+        tagline=about_cfg.tagline,
+        problem=about_cfg.problem,
+        approach=about_cfg.approach,
+        pipeline=[
+            PipelineStep(label=step.label, detail=step.detail)
+            for step in about_cfg.pipeline
+        ],
+        guardrails=about_cfg.guardrails,
+        tradeoffs=about_cfg.tradeoffs,
+        eval=eval_snapshot,
+        stats=AboutLiveStats(
+            documents=index_stats["documents"],
+            chunks=index_stats["chunks"],
+            chunk_size=settings.chunk_size,
+            chunk_overlap=settings.chunk_overlap,
+            embedding_model=settings.embedding_model,
+            llm_model=settings.groq_model,
+            hybrid_enabled=settings.retrieval.hybrid.enabled,
+            top_k=settings.retrieval.top_k,
+        ),
+    )
 
 
 @router.get(
@@ -128,6 +212,33 @@ async def ask(body: AskRequest) -> AskResponse:
     except EnvironmentError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return AskResponse(**result)
+
+
+@router.post(
+    "/api/v1/ask/stream",
+    summary="Ask a question (SSE stream)",
+    description=(
+        "Streams retrieval status, sources, answer tokens, then a done payload. "
+        "Events: status, sources, token, done, error."
+    ),
+)
+async def ask_stream(body: AskRequest) -> StreamingResponse:
+    def event_gen() -> Iterator[str]:
+        try:
+            for item in answer_service.ask_events(body.question):
+                yield _sse(str(item["event"]), dict(item["data"]))
+        except Exception as exc:
+            yield _sse("error", {"detail": str(exc)})
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post(

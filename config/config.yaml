@@ -7,10 +7,27 @@ app:
   name: Knowledge Base AI
   debug: false
 
+# UI mode per deploy target (see config/config.playground.yaml for self-serve demo).
+ui:
+  mode: portfolio
+  show_documents: false
+  show_about: true
+  back_link: https://vvizh.com
+  back_label: vvizh
+  subtitle: Ask the Premier League 2026/27 handbook
+  empty_state:
+    title: Ask the Premier League handbook
+    description: Answers are compiled only from the indexed handbook.
+  example_questions:
+    - How many League Matches does each Club play against every other Club?
+    - What are the Profitability and Sustainability Rules?
+    - When does the Winter Transfer Window open and close?
+    - What is the Premier League Owners' Charter?
+
 llm:
   provider: groq
   # Chat model id passed to the LLM provider.
-  model: llama-3.3-70b-versatile
+  model: openai/gpt-oss-120b
 
 embedding:
   provider: sentence-transformers
@@ -26,6 +43,16 @@ retrieval:
   # Chroma distance threshold: keep chunks with distance <= this value.
   # Scale depends on the embedding model and Chroma metric — tune per corpus.
   distance_threshold: 25.0
+  # Final chunks passed to the answer prompt.
+  top_k: 5
+  # Semantic candidate pool size before hybrid fusion.
+  candidate_k: 40
+  hybrid:
+    enabled: true
+    # RRF constant (standard default 60).
+    rrf_k: 60
+    # Reserved for future BM25-only pass experiments (unused when hybrid only re-ranks semantic hits).
+    keyword_pass_rank: 0
 
 vector_store:
   provider: chroma
@@ -41,3 +68,42 @@ documents:
 cleaning:
   # Optional header line to strip during load (empty = Confidential / page patterns only).
   company_header: ""
+
+# How-it-works copy (shown in About panel when ui.show_about is true).
+about:
+  title: Premier League Handbook RAG
+  tagline: Grounded Q&A over one indexed PDF — answers with page citations.
+  problem: >
+    The Premier League handbook is a long PDF. Asking it like a search box needs
+    retrieval-augmented generation: find the right passages first, then answer only
+    from those passages.
+  approach: >
+    The handbook is ingested, chunked, embedded, and stored in ChromaDB. Each question
+    runs hybrid retrieval (semantic + keyword re-rank), then a Groq LLM answers strictly
+    from the retrieved passages.
+  pipeline:
+    - label: Ingest
+      detail: PDF text extraction, encoding cleanup, ~700-char overlapping chunks
+    - label: Embed
+      detail: sentence-transformers → ChromaDB vector index
+    - label: Retrieve
+      detail: Top-40 semantic candidates, BM25 re-rank via RRF, top-5 to prompt
+    - label: Generate
+      detail: Groq LLM with handbook context, streaming SSE, source badges
+  guardrails:
+    - Answers compiled only from retrieved chunks — no open-web knowledge
+    - Not-found response when nothing passes the distance threshold
+    - Unanswerable questions should return empty sources (eval-checked)
+    - English handbook — English questions retrieve best
+  tradeoffs:
+    - Single-document scope, not a general search engine
+    - Retrieval quality depends on how the question is phrased
+    - Multilingual embedding helps, but the corpus is English-only
+    - LLM latency varies with Groq load; streaming improves perceived speed
+  eval:
+    dataset: evals/pl_handbook.jsonl
+    questions: 25
+    hit_at_5: 0.85
+    mrr: 0.677
+    unanswerable_empty_rate: 0.80
+    note: Hybrid retrieval (Phase B), measured on gold Q&A set

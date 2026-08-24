@@ -79,6 +79,30 @@ class ChromaStore:
         result = coll.get(include=["metadatas"], limit=total)
         return list(result.get("metadatas") or [])
 
+    def get_all_chunks(
+        self,
+        collection: Collection | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return id/text/metadata for every stored chunk."""
+        coll = collection or self.get_collection()
+        total = coll.count()
+        if total == 0:
+            return []
+        result = coll.get(include=["documents", "metadatas"], limit=total)
+        ids = list(result.get("ids") or [])
+        documents = list(result.get("documents") or [])
+        metadatas = list(result.get("metadatas") or [])
+        chunks: list[dict[str, Any]] = []
+        for idx, chunk_id in enumerate(ids):
+            chunks.append(
+                {
+                    "id": chunk_id,
+                    "text": documents[idx] if idx < len(documents) else "",
+                    "metadata": metadatas[idx] if idx < len(metadatas) else {},
+                }
+            )
+        return chunks
+
     def get_chunks_for_document(
         self,
         document_id: str,

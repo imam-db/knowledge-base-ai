@@ -1,0 +1,25 @@
+{"id": "league-matches-home-away", "question": "How many League Matches does each Club play against every other Club?", "answerable": true, "expected_pages": [63], "notes": "Section C The League Competition"}
+{"id": "winter-transfer-window", "question": "When does the Winter Transfer Window open and close?", "answerable": true, "expected_pages": [148, 146, 58], "notes": "Transfer window rules"}
+{"id": "psr-rules", "question": "What are the Profitability and Sustainability Rules?", "answerable": true, "expected_pages": [43, 73, 458], "notes": "PSR appendix / rules"}
+{"id": "squad-cost-ratio", "question": "What is the Squad Cost Ratio?", "answerable": true, "expected_pages": [43, 303], "notes": "SCR rules"}
+{"id": "owners-charter", "question": "What is the Premier League Owners' Charter?", "answerable": true, "expected_pages": [3], "notes": "Opening charter"}
+{"id": "board-of-directors", "question": "Who is on the Premier League Board of Directors?", "answerable": true, "expected_pages": [2], "notes": "Front matter"}
+{"id": "summer-transfer-window", "question": "When does the Summer Transfer Window conclude?", "answerable": true, "expected_pages": [148, 52, 56], "notes": "Transfer windows"}
+{"id": "relegation-clubs", "question": "What happens to Clubs relegated from the Premier League?", "answerable": true, "expected_pages": [37, 3, 310], "notes": "Relegation / promoted club provisions"}
+{"id": "section-c-title", "question": "What is Section C of the Premier League handbook about?", "answerable": true, "expected_pages": [63], "notes": "The League Competition"}
+{"id": "facility-fees-fund", "question": "What is the Facility Fees Fund?", "answerable": true, "expected_pages": [50], "notes": "Definitions"}
+{"id": "fa-cup-definition", "question": "What does F.A. Cup mean in the handbook?", "answerable": true, "expected_pages": [50], "notes": "Definitions A.1"}
+{"id": "league-champions-features", "question": "What must League Champions participate in after the final League Match?", "answerable": true, "expected_pages": [119], "notes": "K.214 features"}
+{"id": "premier-league-2", "question": "What is Premier League 2?", "answerable": true, "expected_pages": [254, 120], "notes": "Development competitions"}
+{"id": "temporary-transfer-minimum", "question": "What is the minimum period of a Temporary Transfer?", "answerable": true, "expected_pages": [148], "notes": "Between summer and winter windows"}
+{"id": "scr-standard-directions", "question": "Where are the Profitability and Sustainability Rules Standard Directions set out?", "answerable": true, "expected_pages": [43, 73], "notes": "Appendix 1 reference"}
+{"id": "promoted-club-bonuses", "question": "How are performance-related bonuses treated for a Promoted Club?", "answerable": true, "expected_pages": [310], "notes": "Promoted Club reporting"}
+{"id": "season-label", "question": "Which Season does this handbook cover?", "answerable": true, "expected_pages": [1], "notes": "Season 2026/27 cover"}
+{"id": "chief-executive", "question": "Who is the Chief Executive of the Premier League?", "answerable": true, "expected_pages": [2], "notes": "Board listing"}
+{"id": "home-away-points", "question": "Subject to Rules C.18 and C.25 to C.30, what must each Club do in the League Competition?", "answerable": true, "expected_pages": [63], "notes": "Exact C.1 wording help"}
+{"id": "transfer-window-board-confirm", "question": "Who confirms the date and time the Summer Transfer Window will open and close?", "answerable": true, "expected_pages": [148], "notes": "The Board"}
+{"id": "unanswerable-nba", "question": "What is the salary cap in the NBA?", "answerable": false, "expected_pages": [], "notes": "Out of domain"}
+{"id": "unanswerable-weather", "question": "What will the weather be in London tomorrow?", "answerable": false, "expected_pages": [], "notes": "Not in handbook"}
+{"id": "unanswerable-recipe", "question": "How do I bake chocolate chip cookies?", "answerable": false, "expected_pages": [], "notes": "Not in handbook"}
+{"id": "unanswerable-stock", "question": "What is Apple stock price today?", "answerable": false, "expected_pages": [], "notes": "Not in handbook"}
+{"id": "unanswerable-f1", "question": "Who won the Formula 1 championship last year?", "answerable": false, "expected_pages": [], "notes": "Not in handbook"}

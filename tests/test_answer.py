@@ -45,6 +45,7 @@ def test_answer_skips_groq_when_no_chunks_pass_threshold():
     groq_mock.assert_not_called()
     assert result["answer"] == GUARDRAIL_MESSAGE
     assert result["sources"] == []
+    assert result["status"] == "not_found"
     assert result["retrieval_metadata"]["returned_chunks"] == 0
     assert result["retrieval_metadata"]["best_distance"] is None
     assert result["confidence"] is None
@@ -59,7 +60,7 @@ def test_answer_raises_environment_error_when_api_key_missing():
     ):
         settings_mock.retrieval_distance_threshold = 25.0
         settings_mock.groq_api_key = ""
-        with pytest.raises(EnvironmentError, match="GROQ_API_KEY tidak ditemukan"):
+        with pytest.raises(EnvironmentError, match="GROQ_API_KEY"):
             answer_question("Bagaimana cuti?")
 
     groq_mock.assert_not_called()
@@ -82,10 +83,13 @@ def test_answer_calls_groq_and_builds_deduped_sources():
 
     groq_mock.assert_called_once()
     assert result["answer"] == "Ajukan cuti via HRIS."
-    assert result["sources"] == [
-        {"document": "SOP_HR.pdf", "page": 4},
-        {"document": "Finance.pdf", "page": 8},
+    assert [(s["document"], s["page"]) for s in result["sources"]] == [
+        ("SOP_HR.pdf", 4),
+        ("Finance.pdf", 8),
     ]
+    assert "snippet" in result["sources"][0]
+    assert result["status"] == "answered"
+    assert len(result["sources"]) == 2
     assert result["retrieval_metadata"]["returned_chunks"] == 3
     assert result["retrieval_metadata"]["best_distance"] == 10.0
     assert result["confidence"] is None

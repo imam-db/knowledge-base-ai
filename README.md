@@ -1,8 +1,29 @@
 # Knowledge Base AI
 
-**Knowledge Application** product #1 for internal company SOP / policy / FAQ.
+**Knowledge Application** product #1 — portfolio demo (Premier League handbook RAG) and optional playground deploy.
 
 Forked from [`knowledge-application-template`](https://github.com/imam-db/knowledge-application-template) at tag `template-v1`. The Reusable Foundation stays aligned with that template; this repo owns the **Domain Layer** (prompts, product name, branding).
+
+## Deploy modes
+
+Two public surfaces from **one codebase**, different config per subdomain:
+
+| Target | Config | UX |
+| ------ | ------ | -- |
+| `kb.vvizh.com` (portfolio) | `config/config.yaml` | Chat-only, preloaded handbook |
+| `kb-playground.vvizh.com` | `config/config.playground.yaml` | Upload + chat, optional sample docs |
+
+Set `CONFIG_PATH` when starting the API:
+
+```bash
+# Portfolio (default)
+uvicorn app.main:app --reload --port 8000
+
+# Playground
+CONFIG_PATH=config/config.playground.yaml uvicorn app.main:app --reload --port 8001
+```
+
+UI mode is exposed at `GET /api/v1/config` — the frontend reads `ui.mode`, `show_documents`, subtitle, and example questions from there.
 
 ## Setup
 
@@ -31,21 +52,32 @@ uvicorn app.main:app --reload --port 8000
 
 This repo does **not** ship `.env`, `chroma_db/`, or runtime documents. After clone:
 
-1. Put PDF/DOCX under `documents/` (or upload via the Documents UI with `X-API-Key`).
+1. Put the Premier League handbook PDF under `documents/` (portfolio) or your corpus files.
 2. Rebuild the vector store:
 
 ```bash
 python -m app.ingest
 ```
 
-Or use `POST /api/v1/documents/upload` — upload runs ingest for that file.
+Playground mode also supports `POST /api/v1/documents/upload` with `X-API-Key`. Portfolio deploy typically ingests at build/deploy time — no public upload UI.
+
+## Retrieval eval
+
+Gold questions live in `evals/pl_handbook.jsonl`. Measure Hit@k / MRR without calling Groq:
+
+```bash
+python -m app.eval_retrieval
+```
+
+Hybrid retrieval (semantic + BM25 RRF re-rank) is controlled in `config/config.yaml` under `retrieval.hybrid`.
 
 ## Domain Layer
 
 | Path | Role |
 | ---- | ---- |
-| `config/config.yaml` | `app.name: Knowledge Base AI` and deployment knobs |
-| `prompts/system.txt` | Company knowledge-base persona |
+| `config/config.yaml` | Portfolio deploy (`ui.mode: portfolio`) |
+| `config/config.playground.yaml` | Self-serve playground deploy |
+| `prompts/system.txt` | Handbook Q&A persona |
 | `prompts/not_found.txt` | Guardrail when context is insufficient |
 | `frontend/` | Product chrome |
 

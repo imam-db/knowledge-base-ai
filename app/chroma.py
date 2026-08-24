@@ -58,3 +58,7 @@ def query_similar(
 ) -> dict[str, Any]:
     """Query collection by embedding. Returns Chroma query result dict for one query."""
     return get_chroma_store().search(query_embedding, n_results=n_results, collection=collection)
+
+
+def get_all_chunks(collection: Collection | None = None) -> list[dict[str, Any]]:
+    return get_chroma_store().get_all_chunks(collection)
