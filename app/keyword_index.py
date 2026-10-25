@@ -7,7 +7,7 @@ from typing import Any
 
 from rank_bm25 import BM25Okapi
 
-from app.chroma import get_all_chunks
+from app.chroma import get_all_chunks, get_chroma_store
 
 logger = logging.getLogger(__name__)
 
@@ -33,19 +33,19 @@ class KeywordIndex:
     def __init__(self) -> None:
         self._bm25: BM25Okapi | None = None
         self._chunks: list[dict[str, Any]] = []
-        self._fingerprint: int | None = None
+        self._version: str | None = None
 
     def rebuild_if_needed(self, chunks: list[dict[str, Any]] | None = None) -> None:
+        version = get_chroma_store().read_version()
         if chunks is not None:
             source = chunks
         else:
-            source = get_all_chunks()
-            fingerprint = len(source)
-            if self._bm25 is not None and self._fingerprint == fingerprint:
+            if self._bm25 is not None and self._version == version:
                 return
+            source = get_all_chunks()
 
         self._chunks = source
-        self._fingerprint = len(source)
+        self._version = version
         if not source:
             self._bm25 = None
             logger.warning("Keyword index empty — no chunks in Chroma")
@@ -55,8 +55,7 @@ class KeywordIndex:
         logger.info("Built BM25 index over %s chunk(s)", len(source))
 
     def search(self, query: str, top_k: int = 20) -> list[KeywordHit]:
-        if self._bm25 is None:
-            self.rebuild_if_needed()
+        self.rebuild_if_needed()
         if self._bm25 is None or not self._chunks:
             return []
         tokens = tokenize(query)

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import chromadb
 from chromadb.api.models.Collection import Collection
@@ -12,10 +16,47 @@ from app.config import settings
 class ChromaStore:
     """Small wrapper around a persistent Chroma collection."""
 
-    def __init__(self, collection: Collection | None = None) -> None:
+    def __init__(
+        self,
+        collection: Collection | None = None,
+        version_path: Path | None = None,
+    ) -> None:
         self._collection = collection
         self._client: chromadb.PersistentClient | None = None
         self._collections: dict[str, Collection] = {}
+        self._version_path = version_path
+
+    @property
+    def version_path(self) -> Path:
+        if self._version_path is not None:
+            return self._version_path
+        return Path(str(settings.chroma_dir) + ".version")
+
+    def bump_version(self) -> None:
+        """Atomically write a fresh index version token next to chroma_dir."""
+        path = self.version_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=path.name + ".tmp-",
+            delete=False,
+        ) as handle:
+            handle.write(uuid4().hex)
+            temp_path = Path(handle.name)
+        try:
+            os.replace(temp_path, path)
+        except BaseException:
+            temp_path.unlink(missing_ok=True)
+            raise
+
+    def read_version(self) -> str:
+        """Return the current index version token, or '' when it does not exist."""
+        try:
+            return self.version_path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return ""
 
     def get_collection(self, name: str | None = None) -> Collection:
         if self._collection is not None and name is None:
@@ -40,16 +81,19 @@ class ChromaStore:
         collection: Collection | None = None,
     ) -> None:
         """Replace all chunks for a document_id, then add the new set."""
-        coll = collection or self.get_collection()
-        coll.delete(where={"document_id": document_id})
-        if not texts:
-            return
-        coll.add(
-            documents=list(texts),
-            embeddings=list(embeddings),
-            metadatas=list(metadatas),
-            ids=list(ids),
-        )
+        try:
+            coll = collection or self.get_collection()
+            coll.delete(where={"document_id": document_id})
+            if not texts:
+                return
+            coll.add(
+                documents=list(texts),
+                embeddings=list(embeddings),
+                metadatas=list(metadatas),
+                ids=list(ids),
+            )
+        finally:
+            self.bump_version()
 
     def search(
         self,
@@ -67,8 +111,11 @@ class ChromaStore:
         )
 
     def delete(self, document_id: str, collection: Collection | None = None) -> None:
-        coll = collection or self.get_collection()
-        coll.delete(where={"document_id": document_id})
+        try:
+            coll = collection or self.get_collection()
+            coll.delete(where={"document_id": document_id})
+        finally:
+            self.bump_version()
 
     def list_documents(self, collection: Collection | None = None) -> list[dict[str, Any]]:
         """Return raw metadatas for every stored chunk (callers aggregate by document)."""
