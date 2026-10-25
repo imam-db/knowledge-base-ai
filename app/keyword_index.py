@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from dataclasses import dataclass
 from typing import Any
 
 from rank_bm25 import BM25Okapi
 
-from app.chroma import get_all_chunks, get_chroma_store
+from app.core.chroma import ChromaStore, get_chroma_store
 
 logger = logging.getLogger(__name__)
 
@@ -27,45 +28,62 @@ class KeywordHit:
     metadata: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class _Snapshot:
+    version: str
+    bm25: BM25Okapi | None
+    chunks: tuple[dict[str, Any], ...]
+
+
 class KeywordIndex:
     """In-memory BM25 index over Chroma chunk texts."""
 
-    def __init__(self) -> None:
-        self._bm25: BM25Okapi | None = None
-        self._chunks: list[dict[str, Any]] = []
-        self._version: str | None = None
+    def __init__(self, store: ChromaStore | None = None) -> None:
+        self._store = store
+        self._snapshot: _Snapshot | None = None
+        self._lock = threading.Lock()
 
-    def rebuild_if_needed(self, chunks: list[dict[str, Any]] | None = None) -> None:
-        version = get_chroma_store().read_version()
-        if chunks is not None:
-            source = chunks
-        else:
-            if self._bm25 is not None and self._version == version:
-                return
-            source = get_all_chunks()
+    def _current_snapshot(self) -> _Snapshot:
+        store = self._store if self._store is not None else get_chroma_store()
+        version = store.read_version()
+        snap = self._snapshot
+        if snap is not None and snap.version == version:
+            return snap
 
-        self._chunks = source
-        self._version = version
-        if not source:
-            self._bm25 = None
-            logger.warning("Keyword index empty — no chunks in Chroma")
-            return
-        corpus = [tokenize(str(c.get("text") or "")) for c in source]
-        self._bm25 = BM25Okapi(corpus)
-        logger.info("Built BM25 index over %s chunk(s)", len(source))
+        with self._lock:
+            version = store.read_version()
+            snap = self._snapshot
+            if snap is not None and snap.version == version:
+                return snap
+
+            chunks = store.get_all_chunks()
+            if not chunks:
+                bm25 = None
+                logger.warning("Keyword index empty — no chunks in Chroma")
+            else:
+                corpus = [tokenize(str(c.get("text") or "")) for c in chunks]
+                bm25 = BM25Okapi(corpus)
+                logger.info("Built BM25 index over %s chunk(s)", len(chunks))
+
+            snapshot = _Snapshot(version=version, bm25=bm25, chunks=tuple(chunks))
+            self._snapshot = snapshot
+            return snapshot
+
+    def rebuild_if_needed(self) -> None:
+        self._current_snapshot()
 
     def search(self, query: str, top_k: int = 20) -> list[KeywordHit]:
-        self.rebuild_if_needed()
-        if self._bm25 is None or not self._chunks:
+        snap = self._current_snapshot()
+        if snap.bm25 is None or not snap.chunks:
             return []
         tokens = tokenize(query)
         if not tokens:
             return []
-        scores = self._bm25.get_scores(tokens)
+        scores = snap.bm25.get_scores(tokens)
         ranked = sorted(enumerate(scores), key=lambda item: item[1], reverse=True)
         hits: list[KeywordHit] = []
         for rank, (idx, score) in enumerate(ranked[:top_k], start=1):
-            chunk = self._chunks[idx]
+            chunk = snap.chunks[idx]
             hits.append(
                 KeywordHit(
                     chunk_id=str(chunk.get("id") or ""),
