@@ -104,8 +104,3 @@ def get_keyword_index() -> KeywordIndex:
     if _default_index is None:
         _default_index = KeywordIndex()
     return _default_index
-
-
-def reset_keyword_index() -> None:
-    global _default_index
-    _default_index = None

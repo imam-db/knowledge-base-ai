@@ -70,6 +70,7 @@ python -m app.eval_retrieval
 ```
 
 Hybrid retrieval (semantic + BM25 RRF re-rank) is controlled in `config/config.yaml` under `retrieval.hybrid`.
+The BM25 index rebuilds lazily on the next search whenever ChromaStore add/delete bumps the shared version token next to `chroma_dir`, so it stays current for API upload/delete, CLI ingest, and multiple workers.
 
 ## Domain Layer
 
