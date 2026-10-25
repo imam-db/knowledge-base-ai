@@ -4,6 +4,8 @@
 venv/
 .env
 chroma_db/
+chroma_db.version
+chroma_db.version.tmp-*
 .pytest_cache/
 *.egg-info/
 dist/

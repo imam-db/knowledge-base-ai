@@ -10,8 +10,18 @@ def test_tokenize_lowercases_words():
     assert "winter" in tokens
     assert "transfer" in tokens
 
+class _FakeStore:
+    def __init__(self, chunks):
+        self._chunks = chunks
+
+    def read_version(self):
+        return "v1"
+
+    def get_all_chunks(self):
+        return self._chunks
+
+
 def test_bm25_prefers_exact_phrase_chunk():
-    index = KeywordIndex()
     chunks = [
         {
             "id": "a",
@@ -24,7 +34,7 @@ def test_bm25_prefers_exact_phrase_chunk():
             "metadata": {"document_name": "plhandbook.pdf", "page": 63, "chunk_id": 1},
         },
     ]
-    index.rebuild_if_needed(chunks)
+    index = KeywordIndex(store=_FakeStore(chunks))
     hits = index.search("each Club shall play League Matches", top_k=2)
     assert hits
     assert hits[0].chunk_id == "b"
